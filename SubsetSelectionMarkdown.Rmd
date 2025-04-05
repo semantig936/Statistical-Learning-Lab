@@ -1,0 +1,56 @@
+---
+title: "Model Selection"
+author: "Dr. Sayak Roychowdhury"
+date: "2025-02-11"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(ISLR)
+summary(Hitters)
+```
+
+We are going to omit the missing values
+
+```{r}
+Hitters = na.omit(Hitters)
+with(Hitters, sum(is.na(Salary)))
+```
+Best subset selection
+le:
+
+```{r}
+library(leaps)
+regfit.full <- regsubsets(Salary~., data = Hitters)
+summary(regfit.full)
+```
+
+Let us see the results for all 19 variables
+```{r}
+library(leaps)
+regfit.full <- regsubsets(Salary~., data = Hitters, nvmax = 19)
+reg.sum = summary(regfit.full)
+names(reg.sum)
+par(mfrow = c(1,1))
+plot(reg.sum$cp, xlab = "Number of Variables", ylab = "Cp")
+which.min(reg.sum$cp)
+points(10, reg.sum$cp[10], pch = 20, col = "red")
+```
+Let us use the plot function in regsubsets
+```{r}
+plot(regfit.full, scale = "Cp")
+coef(regfit.full, 10)
+
+```
+Forward selection model
+```{r}
+regfit.fwd<- regsubsets(Salary~., data = Hitters, nvmax = 19, method = "forward")
+reg.sum = summary(regfit.fwd)
+reg.sum
+which.min(reg.sum$cp)
+plot(regfit.fwd, scale = "Cp")
+coef(regfit.full, 10)
+
+```
