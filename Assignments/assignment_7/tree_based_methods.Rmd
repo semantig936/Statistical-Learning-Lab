@@ -1,0 +1,252 @@
+---
+title: "Tree Based Method"
+author: "Semanti Ghosh"
+date: "2025-03-15"
+output: html_document
+---
+
+# Tree Based Methods
+
+## 1.Importing the designated file
+
+```{r}
+setwd("C:\\Study\\Semester_6\\Statistical_Learning_Lab\\assignment_7")
+
+drug <- read.csv("drug200.csv", header=TRUE)
+head(drug)
+```
+
+
+## 2.Data Cleaning and Preprocessing 
+
+First, the structure of the dataset is viewed (mostly to check for the categorical columns). Then, it is checked for missing values and unique values in the categorical columns are viewed. Later on, the categorical values are then converted to factors (so that things can be seen numerically). They are just viewed for now.
+```{r}
+# Viewing the structure of the dataset
+str(drug)
+
+# Checking for missing values
+colSums(is.na(drug))
+
+# Viewing unique values in categorical columns
+unique(drug$Sex)
+unique(drug$BP)
+unique(drug$Cholesterol)
+unique(drug$Drug)
+```
+
+
+## 3.Identifying the Response Variable
+
+The response variable in this case is **Drug**. It is a categorical variable with classes drugA, drugB, drugC, drugX and drugY. 
+
+
+## Converting categorical inputs to consider while fitting the data
+
+```{r}
+# Converting categorical variables to factors
+drug$Sex <- as.factor(drug$Sex)
+drug$BP <- as.factor(drug$BP)
+drug$Cholesterol <- as.factor(drug$Cholesterol)
+drug$Drug <- as.factor(drug$Drug)  
+```
+
+
+## Fitting a Classification and Regression Tree Model
+
+```{r}
+# Loading the necessary library
+library(rpart)
+
+# Fitting the decision tree model
+tree_model <- rpart(Drug ~ Age + Sex + BP + Cholesterol + Na_to_K, data = drug, method = "class")
+
+# Displaying the model summary
+summary(tree_model)
+
+# Plotting the tree
+plot(tree_model)
+text(tree_model, use.n = TRUE, all = TRUE, cex = 0.8)
+
+```
+
+
+## Plotting a Decision Tree for the fitted model
+
+The model fitted has already been already been plotted once immediately after fitting. It'll be plotted again, this time with some refinements.
+```{r}
+# loading the required library
+library(rpart.plot)
+
+# Plotting using rpart.plot
+rpart.plot(tree_model, type = 3, extra = 104, fallen.leaves = TRUE,
+           main = "Decision Tree for Drug Classification")
+```
+
+
+## 7. Pruning the Tree by changing the Cp value
+
+```{r}
+printcp(tree_model) # checking the Cp table
+plotcp(tree_model) # plotting the Cp vs error graph
+```
+```{r}
+# Pruning the tree
+pruned_tree <- prune(tree_model, cp = 0.012)
+
+# Plotting the pruned tree
+rpart.plot(pruned_tree, type = 3, extra = 104, fallen.leaves = TRUE, box.palette = "Blues", main = "Pruned Decision Tree")
+```
+
+Over here, we tried to use the lowest cp to prune the tree. However, the tree wasn't pruned, in spite of the threshold being greater than the minimum threshold in the table (obtained above). This probably happened because the concerned node had children (split nodes) with cp values greater than that node. 
+
+## 8. Calculating the Misclassification Rate or Accuracy
+
+First, the misclassification rate and accuracy are calculated for the original tree (the one without pruning)
+```{r}
+# Predicting using original tree
+pred <- predict(tree_model, type = "class")
+
+# Printing the confusion matrix
+conf_mat <- table(Predicted = pred, Actual = drug$Drug)
+conf_mat
+
+# Accuracy and misclassification rate
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+misclass <- 1 - accuracy
+
+cat("Original Tree - Accuracy:", accuracy, "\n")
+cat("Original Tree - Misclassification Rate:", misclass, "\n")
+
+```
+
+Then, the misclassification rate and accuracy are calculated for the pruned tree
+```{r}
+# Predicting using pruned tree
+prune_pred <- predict(pruned_tree, type = "class")
+
+# Getting Confusion matrix
+prune_mat <- table(Predicted = prune_pred, Actual = drug$Drug)
+prune_mat
+
+# Accuracy and misclassification rate
+prune_acc <- sum(diag(prune_mat)) / sum(prune_mat)
+prune_misclass <- 1 - prune_acc
+
+cat("Pruned Tree - Accuracy:", prune_acc, "\n")
+cat("Pruned Tree - Misclassification Rate:", prune_misclass, "\n")
+
+```
+
+In both cases, we observe a 100% accuracy. This is usually an indicator of overfitting, but because the dataset is small and well-separated, we observe no misclassifications. Also, the accuracy and misclassifications of the two datasets are identical because pruning couldn't take place based on the threshold values assumed.
+
+
+## 9. Fitting a Bagging Model
+
+```{r}
+library(randomForest)
+
+# Bagging: mtry is set to the total number of predictors
+bagging_model <- randomForest(Drug ~ ., data = drug, mtry = 5, importance = TRUE)
+
+# Printing model summary
+print(bagging_model)
+```
+
+## Fitting a Random Forest Model
+
+```{r}
+# Random Forest: assuming mtry = 2
+rf_model <- randomForest(Drug ~ ., data = drug, mtry = 2, importance = TRUE)
+
+# Printing model summary
+print(rf_model)
+
+```
+
+
+## Changing the value of the number of parameters and then observing the results
+
+```{r}
+# Initialising vector to store results
+mtry_vals <- 1:5  # 5 predictors in the dataset
+oob_error <- numeric(length(mtry_vals))
+
+# Looping over different mtry values
+for (i in seq_along(mtry_vals)) {
+  rf_temp <- randomForest(Drug ~ ., data = drug, mtry = mtry_vals[i])
+  oob_error[i] <- rf_temp$err.rate[nrow(rf_temp$err.rate), "OOB"]
+}
+
+# Creating a data frame to display results
+mtry_results <- data.frame(mtry = mtry_vals, OOB_Error = oob_error)
+print(mtry_results)
+
+```
+
+Printing the results of the above experiment
+
+```{r}
+plot(mtry_results$mtry, mtry_results$OOB_Error, type = "b",
+     xlab = "Number of Predictors per Split (mtry)",
+     ylab = "Out-of-Bag Error Rate",
+     main = "Effect of mtry on Random Forest Performance")
+
+```
+
+From the results and the plot, we see that there is no significant decrease in error on increasing error beyond 2. So, mtry = 2 would be an ideal value.
+
+
+## 11. Obtaining the Best Model using Parameter Tuning
+
+```{r}
+# Trying mtry values from 1 to 5
+mtry_vals <- 1:5
+oob_error <- numeric(length(mtry_vals))
+rf_models <- list()
+
+# Looping over mtry values
+for (i in seq_along(mtry_vals)) {
+  rf_models[[i]] <- randomForest(Drug ~ ., data = drug, mtry = mtry_vals[i])
+  oob_error[i] <- rf_models[[i]]$err.rate[nrow(rf_models[[i]]$err.rate), "OOB"]
+}
+
+# Getting best mtry (minimum OOB error)
+best_index <- which.min(oob_error)
+best_mtry <- mtry_vals[best_index]
+best_model <- rf_models[[best_index]]
+
+cat("Best mtry value:", best_mtry, "\n")
+cat("OOB error for best model:", oob_error[best_index], "\n")
+
+```
+
+### Calculating and Printing the Accuracy and Misclassification Rate of the Model with Best mtry Value
+```{r}
+# Predicting on training data using the best model
+best_pred <- predict(best_model, type = "class")
+
+# Confusion matrix
+conf_mat <- table(Predicted = best_pred, Actual = drug$Drug)
+print(conf_mat)
+
+# Accuracy and misclassification
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+misclass <- 1 - accuracy
+
+cat("Accuracy of Best Model:", accuracy, "\n")
+cat("Misclassification Rate:", misclass, "\n")
+
+```
+So, we get the best mtry value as 2 with an accuracy of **99%** and and a misclassification rate of **1%**.
+
+
+## Conclusion
+
+- A classification tree was fitted using the `rpart` package.
+- The tree was pruned using the lowest`cp` value, although it did not get pruned because the value was not sufficient.
+- Accuracy and misclassification rate were calculated for both original and pruned trees.
+- Bagging and Random Forest models were implemented using the `randomForest` package.
+- The number of predictors per split (`mtry`) was varied to observe its effect on performance.
+- OOB error was used as the evaluation metric for model comparison.
+- The best model was selected based on lowest OOB error.
+- Final accuracy and misclassification rate were reported for the selected model.

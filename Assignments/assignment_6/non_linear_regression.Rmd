@@ -1,0 +1,220 @@
+---
+title: "Non Linear Regression"
+author: "Semanti Ghosh"
+date: "2025-03-15"
+output: html_document
+---
+
+## 1.Importing the data file and printing the first few rows of the dataset
+
+```{r}
+setwd("C:\\Study\\Semester_6\\Statistical_Learning_Lab\\assignment_6")
+
+#converting the data from .txt to .csv
+iq_data <- read.delim("iqsize.txt", header = TRUE)
+write.csv(iq_data, "iqsize.csv", row.names = FALSE)
+
+#reading the data from the .csv file and then printing the first few lines and the data structure
+iq <- read.csv("iqsize.csv", header = TRUE)
+head(iq)
+str(iq)
+```
+
+
+## 2.Data Cleaning and Pre-processing and Preliminary Analysis
+
+### Cleaning and preprocessing
+A check is done to see if there is any missing or duplicate data. If found, that data is removed. However, in this case, no such data was found.
+```{r}
+# checking for discrepancies in the data, if they exist we'll have to take care of that
+colSums(is.na(iq)) #checking for incomplete data
+sum(duplicated(iq)) #checking for duplicate values
+summary(iq) #summary
+```
+
+### Preliminary Data Analysis and Visualisation
+```{r}
+library(ggplot2) # loading the necessary library
+
+# scatter plots (to see relationships with response variable PIQ)
+# brain
+ggplot(iq, aes(x = Brain, y = PIQ)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "PIQ vs Brain Size", x = "Brain Size", y = "PIQ")
+
+# height
+ggplot(iq, aes(x = Height, y = PIQ)) +
+  geom_point(color = "darkgreen") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "PIQ vs Height", x = "Height", y = "PIQ")
+
+# weight
+ggplot(iq, aes(x = Weight, y = PIQ)) +
+  geom_point(color = "purple") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "PIQ vs Weight", x = "Weight", y = "PIQ")
+
+
+# box plots (same thing)
+# Brain
+iq$BrainBin <- cut(iq$Brain, breaks = 4)
+ggplot(iq, aes(x = BrainBin, y = PIQ)) +
+  geom_boxplot(fill = "yellow") +
+  labs(title = "Boxplot of PIQ by Brain Size Bins", x = "Brain Size Bins", y = "PIQ")
+
+# Height
+iq$HeightBin <- cut(iq$Height, breaks = 4)
+ggplot(iq, aes(x = HeightBin, y = PIQ)) +
+  geom_boxplot(fill = "green") +
+  labs(title = "Boxplot of PIQ by Height Bins", x = "Height Bins", y = "PIQ")
+
+# Weight
+iq$WeightBin <- cut(iq$Weight, breaks = 4)
+ggplot(iq, aes(x = WeightBin, y = PIQ)) +
+  geom_boxplot(fill = "pink") +
+  labs(title = "Boxplot of PIQ by Weight Bins", x = "Weight Bins", y = "PIQ")
+
+# removing the bins added (the unwanted columns)
+iq <- subset(iq, select = c("PIQ", "Brain", "Height", "Weight"))
+```
+
+
+## 3.Converting the categorical inputs
+
+```{r}
+# checking the structure again
+str(iq)
+```
+All the variables (columns) in the data are of numerical type. So, there is no need to convert to categorical values.
+
+
+## 4. Fitting a Linear Regression Model
+
+```{r}
+lm_model <- lm(PIQ ~ Brain + Height + Weight, data = iq) #fitting a linear regression model
+summary(lm_model) #getting its summary
+```
+
+## 5.Fitting Polynomial Regression Models
+
+Different models are fitted with different degrees of variables (between 1 to 4). The model with the best adjusted \( R^2 \) is saved. 
+```{r}
+# Setting the degree ranges
+brain_deg <- 1:4
+height_deg <- 1:4
+weight_deg <- 1:4
+
+# Storing results
+results <- data.frame(Brain = integer(),
+                      Height = integer(),
+                      Weight = integer(),
+                      Adj_R2 = numeric())
+
+best_adj_r2 <- -Inf
+best_model <- NULL
+
+# Looping to search for best model based on Adjusted R²
+for (b in brain_deg) {
+  for (h in height_deg) {
+    for (w in weight_deg) {
+      model <- lm(PIQ ~ poly(Brain, b) + poly(Height, h) + poly(Weight, w), data = iq)
+      adj_r2 <- summary(model)$adj.r.squared
+      
+      # Storing results
+      results <- rbind(results, data.frame(Brain = b, Height = h, Weight = w, Adj_R2 = adj_r2))
+      
+      # if else statement to keep track of best model
+      if (adj_r2 > best_adj_r2) {
+        best_adj_r2 <- adj_r2
+        best_model <- model
+        best_b <- b
+        best_h <- h
+        best_w <- w
+      }
+    }
+  }
+}
+
+# Displaying the best result
+cat("Best model summary")
+print(best_model)
+cat("Best combination based on Adjusted R^2:\n")
+cat("Brain degree:", best_b, "\n")
+cat("Height degree:", best_h, "\n")
+cat("Weight degree:", best_w, "\n")
+cat("Adjusted R^2:", best_adj_r2, "\n")
+
+```
+
+
+## 6.Analysing the Polynomial Models fitted using ANOVA
+
+The best has already been selected from the last part. ANOVA analysis is conducted on the best model. The null and alternate hypotheses are as follows
+
+**Null Hypothesis (H₀):** All the polynomial predictor terms (coefficients) in the model have no effect on the response variable PIQ. That is, all the coefficients (except the intercept) are equal to zero.
+
+**Alternate Hypothesis (H₁):** At least one of the polynomial predictor terms significantly affects the response variable PIQ. That is, at least one coefficient is not equal to zero.
+
+```{r}
+# Running ANOVA on the best model
+anova(best_model)
+```
+From the results, we can see that Height is the most significant. Brain is also significant (though not as much as Height), and Weight is not significant. 
+
+## 7. Selecting the best fit model
+
+The best fit model has already been selected (using adjusted \( R^2 \)). The polynomial regression model has brain degree and height degree 4 and weight degree 1. However, since the number of data points is less (<50), having degree of four in any variable leads to a heightened risk of overfitting. However, by the current matrix, we obtained the best fit model as:-
+- **Brain:** Degree 4 (includes Brain, Brain², Brain³, Brain⁴)
+- **Height:** Degree 4 (includes Height, Height², Height³, Height⁴)
+- **Weight:** Degree 1 (linear term only)
+The **Adjusted \( R^2 \)** for this model is **0.3809813**
+
+
+## 8.Fitting a spline with varying knots and GAM model
+
+The spline will have three knots because there are 38 datapoints and when the number of datapoints is less, we can't have too many knots. That will lead to overfitting.
+
+### Fitting a spline with three knots 
+```{r}
+# Loading the splines library
+library(splines)
+
+# Spline model with 3 knots
+spline_model_3k <- lm(PIQ ~ bs(Brain, knots = quantile(iq$Brain, probs = c(0.25, 0.5, 0.75))) +
+                          bs(Height, knots = quantile(iq$Height, probs = c(0.25, 0.5, 0.75))) +
+                          bs(Weight, knots = quantile(iq$Weight, probs = c(0.25, 0.5, 0.75))),
+                      data = iq)
+
+# Summary of spline model
+summary(spline_model_3k)
+
+```
+
+### Fitting a Generalised Additive Model
+```{r}
+# Loading mgcv library
+library(mgcv)
+
+# Fitting a GAM model
+gam_model <- gam(PIQ ~ s(Brain) + s(Height) + s(Weight), data = iq)
+
+# Summary of GAM
+summary(gam_model)
+
+# Plotting smooth functions
+plot(gam_model, pages = 1, se = TRUE, col = "darkblue")
+
+```
+
+## Conclusion
+
+In this assignment, various regression models were explored to study how PIQ is influenced by Brain, Height, and Weight. A basic linear model was first fitted, followed by polynomial models of increasing complexity. 
+
+Model comparisons using ANOVA and Adjusted \( R^2 \) indicated that the polynomial model with quartic polynomials in brain and height and linear in weight provided the best fit to the data, although there is a higher risk of overfitting due to the small dataset.
+
+To introduce additional flexibility, spline regression models with varying knots were fitted. Furthermore, a Generalized Additive Model (GAM) was implemented, offering a smooth, non-parametric approach to model the relationship between PIQ and the predictors. 
+
+Overall, while the polynomial regression model provided strong fit metrics, spline and GAM models offer more flexible interpretations and can capture subtle non-linear trends without explicitly defining polynomial degrees.
+
+
