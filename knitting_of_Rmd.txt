@@ -1,0 +1,26 @@
+
+Run from R Studio
+Sys.getenv("RSTUDIO_PANDOC")
+[1] ""
+> Sys.setenv(RSTUDIO_PANDOC = "/opt/homebrew/bin") - For Mac
+Sys.setenv(RSTUDIO_PANDOC = "/usr/bin") - For Linux
+Sys.setenv(RSTUDIO_PANDOC = "C:/Program Files/RStudio/bin/pandoc") - For windows
+> Sys.getenv("RSTUDIO_PANDOC")
+[1] "/opt/homebrew/bin"
+
+> rmarkdown::pandoc_version()
+[1] ‘3.6.3’
+> setwd("/Users/sumitghosh/application-sumit/Semanti-6th-Sem/Statistical_Learning/Assignments/A5-Semanti")
+Windows - Go to explorer, get path
+Linux, Open a command propmt: 
+1. pwd => show where you are
+2. by using command 'cd', go the the directory where your.Rmd file resides.
+3. pwd => provides you the path of the .Rmd file
+Note- 'ls -al' command shows all files in a folder
+> library(rmarkdown)
+> render("assignment_05_22IM10036.Rmd")
+
+render("non_linear_regression.Rmd")
+
+When there is a rendering issue, we may need to install:
+inytex::reinstall_tinytex(repository = "illinois")
