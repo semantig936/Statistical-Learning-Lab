@@ -1,1 +1,23 @@
+This text file contains additional code
 
+Command to convert the ratings (agreement levels) to categorical values 
+df$rating <- factor(df$rating, levels = c("Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"), ordered = TRUE)
+
+If they're unordered like "Yes", "No", "Maybe", then it'll be
+df$response <- factor(df$response)
+
+If they're ordered, like say that agreement levels given numbers, then we'll get
+df$rating <- factor(df$rating, levels = 1:5, ordered = TRUE)
+
+If they are numbers, but are categorical values, then use code: 
+df$category <- as.factor(df$category)
+
+Softmax in R
+
+softmax <- function(x) {
+  exp_x <- exp(x - max(x))  # subtract max(x) for numerical stability
+  return(exp_x / sum(exp_x))
+}
+
+x <- c(2.0, 1.0, 0.1)
+softmax(x) # this will return an array of probabilistic values, for each of the elements in x
