@@ -21,3 +21,6 @@ softmax <- function(x) {
 
 x <- c(2.0, 1.0, 0.1)
 softmax(x) # this will return an array of probabilistic values, for each of the elements in x
+
+Also, in case of logistic regression, you use family = binomial. But in cases you've got to use softmax, you will have to use the following code:-
+model <- glm(Survived ~ Age + Sex, data = titanic_data, family = binomial)
